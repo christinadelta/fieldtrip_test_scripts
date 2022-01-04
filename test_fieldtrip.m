@@ -5,7 +5,7 @@ ftdir          = '/Users/christinadelta/githubstuff/fieldtrip';                 
 addpath(ftdir)
 
 % add data path 
-datadir = '/Users/christinadelta/Desktop/SubjectEEG';
+datadir = '/Users/christinadelta/githubstuff/fieldtrip_test_scripts';
 eegdir = fullfile(datadir, 'eeg');
 
 % reading continuous data into memory
