@@ -19,7 +19,7 @@
 % 1. define trials 
 
 % we will use the "trialfun_affcog.m" function to read markers from the EEG
-% signal and identifies trials that belong to condition 1
+% signal and identify trials that belong to condition 1
 % (positive-negative judgements) or 2 (animal-human judgements). 
 
 % 2. pre-process and re-reference 
@@ -34,6 +34,26 @@
 % re-referencing step to obtain the EOG channels is not needed 
 
 % 4. channel layout 
+
+% this is used for topoplots thus it is necessary to to know how the
+% electrodes are positioned on the scalp. 
+
+% The channel location are not saved in the EEG dataset, we need to use a
+% layout file which contains 2d positions of the channels 
+
+% 5. Artifacts
+
+% 'ft_rejectvisual' will be used to inspect data and reject trials or
+% channels with artifacts 
+% two modes will be used:
+% a. channel mode
+% b. summary mode - computes the variance in each channel and trial 
+
+% 6. Compute and plot ERPs 
+
+% ERPs will be computed for 2 conditions:
+% a. posiitive/negative judgements
+% b. human/animal judgements
 
 %% define trials - read the data 
 
@@ -93,6 +113,7 @@ ft_databrowser(cfg)
 plot(data.time{1}, data.trial{1})
 
 %% extract eog signal 
+% Create bipolar re-referenced EOGv & EOGh channels 
 
 % eogv channel
 cfg                 = [];
@@ -140,9 +161,78 @@ ft_databrowser(cfg, data)
 
 %% channel layout 
 
+% the layout should contain the correct channel labels (match the channel
+% labels in the data). 
+cfg        = [];
+cfg.layout = 'mpi_customized_acticap64.mat';
+ft_layoutplot(cfg);
 
+%% Dealing with Artifacts 
 
+% channel mode artifact detection
+cfg         = [];
+cfg.method  = 'channel';
+ft_rejectvisual(cfg, data)
 
+% the eog channel (61) contains blinks 
+% also channel 43 has noisy trials (138 139)
+
+% summary mode artifact detection
+cfg          = [];
+cfg.method   = 'summary';
+cfg.layout   = 'mpi_customized_acticap64.mat';  % for plotting individual trials
+cfg.channel  = [1:60];                          % do not show EOG channels
+data_clean   = ft_rejectvisual(cfg, data);
+
+% NOTE:
+% to reject trials with this method, use the trial toggle option, one
+% ready, press quit to save the process 
+
+% do one last visual inspection after trial rejection
+cfg             = [];
+cfg.viewmode    = 'vertical';
+ft_databrowser(cfg, data_clean);
+
+%% Compute and plot ERPs 
+
+% the conditions for each trial were assigned by the 'trialfun' function 
+% used in the beginning.
+
+% print the trial info without the rejected trials 
+disp(data_clean.trial.info')
+
+% select trials with conditions 1 and 2 and compute the erps 
+% use ft_timelockanalysis to compute the ERPs
+cfg             = [];
+cfg.trials      = find(data_clean.trialinfo==1);
+task1           = ft_timelockanalysis(cfg, data_clean);
+
+cfg             = [];
+cfg.trials      = find(data_clean.trialinfo==2);
+task2           = ft_timelockanalysis(cfg, data_clean);
+
+cfg             = [];
+cfg.layout      = 'mpi_customized_acticap64.mat';
+cfg.interactive = 'yes';
+cfg.showoutline = 'yes';
+ft_multiplotER(cfg, task1, task2)
+
+% look at ERP difference waves 
+cfg             = [];
+cfg.operation   = 'subtract';
+cfg.parameter   = 'avg';
+difference      = ft_math(cfg, task1, task2);
+
+% note that the following appears to do the sam
+% difference     = task1;                   % copy one of the structures
+% difference.avg = task1.avg - task2.avg;   % compute the difference ERP
+% however that will not keep provenance information, whereas ft_math will
+
+cfg             = [];
+cfg.layout      = 'mpi_customized_acticap64.mat';
+cfg.interactive = 'yes';
+cfg.showoutline = 'yes';
+ft_multiplotER(cfg, difference);
 
 
 
